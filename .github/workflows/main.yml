@@ -1,0 +1,71 @@
+name: Unpack PumpFun Bot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find ZIP
+        run: |
+          ZIP_FILE=$(find . -maxdepth 1 -type f -name 'PumpFun-Lab-Bot-v0.4-CALLOUT-TELEGRAM-FINAL.zip' -print -quit)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ZIP file not found"
+            exit 1
+          fi
+
+          echo "ZIP_FILE=$ZIP_FILE" >> "$GITHUB_ENV"
+
+      - name: Extract bot
+        run: |
+          rm -rf unpacked
+          mkdir unpacked
+
+          unzip -q "$ZIP_FILE" -d unpacked
+
+          echo "Extracted:"
+          find unpacked -maxdepth 3 -type f | sort
+
+      - name: Copy project to repository root
+        run: |
+          SOURCE="unpacked/pumpfun-lab-bot"
+
+          if [ ! -d "$SOURCE" ]; then
+            echo "Project folder not found: $SOURCE"
+            exit 1
+          fi
+
+          cp -a "$SOURCE"/. .
+
+      - name: Remove generated cache files
+        run: |
+          find . -type d -name "__pycache__" -prune -exec rm -rf {} +
+          find . -type d -name ".pytest_cache" -prune -exec rm -rf {} +
+
+      - name: Remove uploaded ZIP
+        run: |
+          rm -f "PumpFun-Lab-Bot-v0.4-CALLOUT-TELEGRAM-FINAL.zip"
+
+      - name: Commit project
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+
+          git commit -m "chore: unpack PumpFun Lab Bot"
+          git push
